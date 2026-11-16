@@ -4,24 +4,28 @@
 # Lines starting with # are comments and are ignored.
 # ============================================================
 
-name=Prof. Pin Luarn
+name=Anchal Tewari
 
-title1=Top 2% Scientist Worldwide (2020-2026)
+title1=MBA Candidate in International Management | Hochschule Pforzheim
 
-title2=2024 National Teaching Award Laureate
+title2=Working Student – HR Strategy & Operations | IONOS
 
-expertise=Internet Marketing, AI Applications, Agentic AI
+expertise=Process Improvement, Operations, Risk Management, KPI Analysis, AI Applications in HR
 
-education=Ph.D. in Industrial Engineering, University of Wisconsin-Madison, USA
+education=MBA in International Management, Hochschule Pforzheim, Germany (2025–2027, ongoing); B.Tech. in Fire and Safety Engineering, University of Petroleum and Energy Studies, India
 
-email=luarn@mail.ntust.edu.tw
-linkedin=https://pse.is/8nn88y 
+email=Annchal.tewari.job@gmail.com
 
-about1=Prof. Luarn earned his B.S. in Industrial Engineering from Tunghai University,
-about2=and his M.S. and Ph.D. in Industrial Engineering from the University of Wisconsin-Madison.
-about3=Named among the world's top 2% scientists by Stanford University & Elsevier for seven consecutive years (2020-2026).
-about4=Recipient of the 2024 Presidential National Teaching Award, Taiwan
+linkedin=https://www.linkedin.com/in/anchal0101/
 
-phone=+886-2-2737-6754
+about1=Anchal is pursuing an MBA in International Management at Hochschule Pforzheim, building on an engineering background in Fire and Safety.
 
-location=T2-409, National Taiwan University of Science and Technology, No. 43, Sec. 4, Keelung Rd., Taipei, Taiwan
+about2=Her experience at Nestlé India and Reliance Industries spans operational compliance, risk management, cross-functional projects and the commissioning of seven warehouses.
+
+about3=At IONOS, she supports HR Strategy & Operations through process documentation, structured knowledge management and AI-enabled HR initiatives.
+
+about4=Her professional interests include product marketing, product management and go-to-market strategy, with a focus on translating AI capabilities into measurable business value.
+
+phone=+49 162 7616223
+
+location=Pforzheim, Germany
