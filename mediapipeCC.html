@@ -1,578 +1,616 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>M12345678 Mediapipe Demo</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 100%; height: 100%;
-    background: #05060f;
-    overflow: hidden;
-    font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
-    color: #fff;
-  }
-  #stage { position: relative; width: 100vw; height: 100vh; }
-
-  /* Particle canvas: full-screen background on top */
-  #particleCanvas {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    z-index: 2;
-    pointer-events: none;
-  }
-
-  /* Live camera feed + detection overlay (picture-in-picture, bottom right) */
-  #camWrap {
-    position: absolute;
-    right: 20px; bottom: 20px;
-    width: 420px;
-    aspect-ratio: 4 / 3;
-    border: 2px solid rgba(0, 255, 220, .6);
-    border-radius: 12px;
-    overflow: hidden;
-    z-index: 5;
-    box-shadow: 0 0 24px rgba(0, 255, 220, .35);
-    background: #000;
-  }
-  #video, #overlayCanvas {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);   /* mirrored for a more intuitive view */
-  }
-  #overlayCanvas { z-index: 2; }
-
-  /* Title bar */
-  #titleBar {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    text-align: center;
-    padding: 14px 0 10px;
-    z-index: 10;
-    background: linear-gradient(180deg, rgba(5,6,15,.85), transparent);
-  }
-  #titleBar h1 {
-    font-size: 44px;
-    font-weight: 900;
-    letter-spacing: 6px;
-    background: linear-gradient(90deg, #00ffd0, #6a8dff, #ff6ad5, #ffd166, #00ffd0);
-    background-size: 300% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: flow 8s linear infinite;
-    text-shadow: 0 0 30px rgba(106, 141, 255, .25);
-  }
-  @keyframes flow { to { background-position: 300% 0; } }
-
-  /* Left-side info panel */
-  #infoPanel {
-    position: absolute;
-    left: 20px; bottom: 20px;
-    z-index: 10;
-    background: rgba(10, 14, 30, .72);
-    border: 1px solid rgba(120, 160, 255, .35);
-    border-radius: 12px;
-    padding: 16px 20px;
-    min-width: 300px;
-    backdrop-filter: blur(6px);
-    line-height: 1.9;
-    font-size: 15px;
-  }
-  #infoPanel .clock { font-size: 26px; font-weight: 700; color: #00ffd0; }
-  #infoPanel .date  { font-size: 17px; color: #9fb4ff; }
-  #infoPanel .row b { color: #ffd166; }
-  #handState.open   { color: #00ff88; font-weight: 700; }
-  #handState.closed { color: #ff5f7a; font-weight: 700; }
-  #handState.none   { color: #888; }
-
-  .bar {
-    width: 100%; height: 8px;
-    background: rgba(255,255,255,.12);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 2px;
-  }
-  .bar > i {
-    display: block; height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #00ffd0, #6a8dff);
-    border-radius: 4px;
-    transition: width .12s linear;
-  }
-
-  #loading {
-    position: absolute; inset: 0;
-    z-index: 99;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 16px;
-    background: #05060f;
-    font-size: 20px; letter-spacing: 2px;
-  }
-  .spinner {
-    width: 52px; height: 52px;
-    border: 4px solid rgba(0,255,208,.2);
-    border-top-color: #00ffd0;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d16">
+  <meta name="description" content="Anchal Tewari's interactive gesture studio. Turn hand movements into luminous particle art, then make the experience your own.">
+  <title>Anchal Tewari | AI Gesture Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23090d16'/%3E%3Cpath d='M17 42 30 16h5l13 26h-8l-7-16-8 16Z' fill='%2379f5d4'/%3E%3C/svg%3E">
+  <style>
+    :root { color-scheme:dark; --bg:#090d16; --surface:#101622; --line:#ffffff12; --ink:#edf2fa; --muted:#94a0b5; --accent:#79f5d4; --secondary:#a18bff; --accent-rgb:121,245,212; --radius:24px; }
+    * {box-sizing:border-box} [hidden] {display:none!important}
+    body {margin:0; background:radial-gradient(ellipse at 10% 0%,#17233166,transparent 46%),var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+    button,input,select {font:inherit} button,select,input[type="color"],input[type="range"],summary {cursor:pointer}
+    button {color:inherit} button:disabled {cursor:wait;opacity:.55}
+    button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible {outline:2px solid var(--accent);outline-offset:4px}
+    button {touch-action:manipulation} a {color:var(--accent)}
+    .skip {position:fixed;left:20px;top:-60px;z-index:100;background:var(--accent);color:#09121a;padding:12px;border-radius:8px}.skip:focus{top:12px}
+    .icon {width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+    .svg-defs {position:absolute;width:0;height:0;overflow:hidden}
+    .shell {max-width:1600px;margin:auto;padding:0 32px}
+    .topbar {min-height:100px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:1px solid var(--line)}
+    .brand {display:flex;align-items:center;gap:13px}.brand-mark {width:43px;height:43px;border:1px solid #79f5d455;border-radius:14px;background:linear-gradient(135deg,#79f5d41c,#a18bff16);display:grid;place-items:center;font-weight:700;letter-spacing:-1px;color:var(--accent)}
+    .brand-name {font-size:16px;font-weight:650;letter-spacing:-.3px}.brand-sub {color:var(--muted);font-size:11px;margin-top:5px;letter-spacing:1.8px;text-transform:uppercase}
+    .top-actions {display:flex;align-items:center;gap:10px}.student {font:11px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted);border-right:1px solid var(--line);padding-right:18px;margin-right:7px;white-space:nowrap}
+    .button {border:1px solid #ffffff19;background:#ffffff04;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;padding:11px 14px;font-size:12px;font-weight:600;transition:background .2s,border-color .2s;white-space:nowrap}
+    .button:hover {background:#ffffff0d;border-color:#ffffff38}.button.primary {background:var(--accent);border-color:var(--accent);color:#09151c}.button.primary:hover {filter:brightness(1.08)}
+    .button.small {padding:8px 10px;font-size:11px}.icon-button {display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:#ffffff05;width:34px;height:34px;color:var(--muted)}.icon-button:hover{color:var(--ink);background:#ffffff10}
+    .intro {display:flex;justify-content:space-between;align-items:end;gap:15px;padding:29px 0 22px}.eyebrow {font:10px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:2px;text-transform:uppercase;color:var(--accent)}
+    .intro h1 {font-size:25px;letter-spacing:-.8px;margin:8px 0 0;font-weight:550}.intro p {color:var(--muted);margin:0;font-size:12px}
+    .studio {display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;align-items:start}body:not(.panel-open) .studio{grid-template-columns:1fr}body:not(.panel-open) .customizer{display:none}
+    .arena {height:640px;min-height:520px;position:relative;overflow:hidden;border:1px solid #ffffff16;border-radius:var(--radius);isolation:isolate;background:radial-gradient(ellipse at 50% 60%,rgba(var(--accent-rgb),.06),transparent 58%),#0b111c}
+    .arena::before {content:"";position:absolute;inset:0;background:linear-gradient(180deg,#ffffff03,transparent 35%);pointer-events:none}
+    .arena::after {content:"";position:absolute;inset:0;background-image:radial-gradient(#8a9bb532 .7px,transparent .7px);background-size:24px 24px;z-index:-1;mask-image:radial-gradient(ellipse,#0009,transparent 78%);pointer-events:none}
+    #particles {position:absolute;width:100%;height:100%;inset:0;z-index:0;touch-action:pan-y}
+    .arena-top {position:absolute;top:23px;left:25px;right:25px;display:flex;align-items:center;justify-content:space-between;z-index:2;gap:12px}
+    .mode-badge {display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #ffffff15;border-radius:6px;color:#b5c2d6;background:#101724c9;font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:1px;text-transform:uppercase}
+    .dot {width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(var(--accent-rgb),.5)}
+    .canvas-title {position:absolute;top:89px;left:31px;z-index:1;pointer-events:none}.canvas-title h2 {font-size:clamp(29px,3.2vw,47px);font-weight:450;letter-spacing:-1.8px;line-height:1.14;margin:0}.canvas-title em {font-family:Georgia,"Times New Roman",serif;font-weight:normal;color:var(--accent);letter-spacing:-1.4px}.canvas-title p{margin:15px 0 0;color:#8794a9;font-size:11px;line-height:1.75;max-width:245px}
+    .orbit-label {position:absolute;left:29px;bottom:114px;font:10px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:2px;color:#a1adc2;pointer-events:none;z-index:2}.orbit-label span{color:var(--accent);margin-right:10px}
+    .scene-dock {position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;padding:8px;border:1px solid #ffffff1e;border-radius:16px;background:#141c2de8;box-shadow:0 12px 30px #0005;backdrop-filter:blur(14px);z-index:3}
+    .scene-dock button {width:38px;height:38px;display:grid;place-items:center;border:1px solid transparent;background:transparent;color:#8997af;border-radius:10px;transition:background .2s,color .2s}
+    .scene-dock button:hover {background:#ffffff0d;color:#e9f1fa}.scene-dock button[aria-pressed="true"]{background:rgba(var(--accent-rgb),.12);border-color:rgba(var(--accent-rgb),.25);color:var(--accent)}
+    .dock-divider{height:22px;width:1px;background:var(--line);margin:0 3px}.scene-dock .icon{width:20px;height:20px}
+    .demo-note{position:absolute;right:25px;bottom:118px;color:#7e8da5;font-size:10px;z-index:1;max-width:170px;text-align:right;line-height:1.6}
+    .camera-card{position:absolute;right:22px;bottom:100px;width:280px;aspect-ratio:4/3;border:1px solid rgba(var(--accent-rgb),.4);border-radius:13px;overflow:hidden;background:#05080d;z-index:3;box-shadow:0 12px 35px #0005}
+    .camera-card video,.camera-card canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}.camera-card canvas{pointer-events:none}.camera-tag{position:absolute;top:7px;left:8px;font:8px ui-monospace,monospace;letter-spacing:1px;background:#080e1abf;padding:5px 7px;border-radius:5px;color:var(--accent)}
+    .camera-ready{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;background:radial-gradient(ellipse at 50% 55%,rgba(var(--accent-rgb),.08),transparent 75%),#0a111d;padding:27px 15px 14px;text-align:center}.camera-ready .icon{width:33px;height:33px;color:var(--accent)}.camera-ready strong{font-size:12px;font-weight:550}.camera-ready p{font-size:10px;line-height:1.6;color:var(--muted);margin:0;max-width:215px}.camera-ready .button{font-size:10px;padding:8px 12px}.camera-ready .button .icon{width:14px;height:14px}.camera-card.is-loading .camera-ready{background:#0a111dba}.gesture-guide{display:flex;flex-wrap:wrap;gap:8px 17px;color:#a6b5cb;font-size:10px;line-height:1.7;margin:13px 3px 0}.gesture-guide span{display:inline-flex;align-items:center;gap:5px}.gesture-guide b{color:var(--accent);font-weight:500}.camera-card.is-live{box-shadow:0 0 24px rgba(var(--accent-rgb),.13),0 12px 35px #0005}
+    .camera-notice{position:absolute;left:24px;right:24px;bottom:90px;border:1px solid #ffb68a55;background:#251e24ee;color:#ffd0b8;border-radius:11px;padding:12px 15px;font-size:12px;line-height:1.6;z-index:5}
+    .arena:fullscreen{border-radius:0;height:100vh}.arena:fullscreen .canvas-title{top:100px}.arena:fullscreen .camera-card{width:280px}
+    .metrics {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.metric{padding:17px 18px;background:#10162299;border:1px solid var(--line);border-radius:14px}.metric-label{font:9px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:1.2px;color:#94a0b5;display:flex;align-items:center;gap:7px}.metric-label .icon{width:13px;height:13px}.metric-value{margin:10px 0 5px;font-size:20px;font-weight:500;letter-spacing:-.5px}.metric-sub{color:#7e8ca4;font-size:10px}.meter{height:3px;border-radius:3px;background:#ffffff0c;margin-top:13px;overflow:hidden}.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--secondary));transition:width .16s;border-radius:3px}
+    .workspace-foot {display:flex;justify-content:space-between;gap:20px;color:#7e8ca4;font-size:10px;line-height:1.7;margin:15px 3px 0}.workspace-foot span{color:var(--accent)}
+    .customizer {border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(160deg,#151d2a,#101622);overflow:hidden}.panel-head{padding:24px 23px 19px}.panel-head h2{margin:8px 0;font-size:23px;letter-spacing:-.7px;font-weight:500}.panel-head p{font-size:11px;line-height:1.6;color:var(--muted);margin:0}.section{border-top:1px solid var(--line);padding:19px 23px}.section-title{font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:1.5px;text-transform:uppercase;color:#a9b6cb;margin:0 0 14px}
+    .presets {display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.preset {border:1px solid var(--line);background:#ffffff02;padding:9px 4px;color:#98a6bc;border-radius:10px;font-size:9px;display:grid;gap:8px;justify-items:center}.preset[aria-pressed="true"]{border-color:rgba(var(--accent-rgb),.5);background:rgba(var(--accent-rgb),.05);color:var(--ink)}.preset-swatch{display:flex}.preset-swatch i{width:16px;height:16px;border-radius:50%;background:var(--swatch)}.preset-swatch i+i{margin-left:-4px}
+    .color-row {display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.color-field{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:7px;background:#090d1644;font-size:10px;color:var(--muted)}input[type="color"]{border:0;padding:0;background:transparent;width:23px;height:23px;border-radius:6px;flex-shrink:0}input[type="color"]::-webkit-color-swatch-wrapper{padding:0}input[type="color"]::-webkit-color-swatch{border:0;border-radius:5px}
+    .control {margin-top:17px}.control:first-child{margin-top:0}.control-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11px;color:#a9b6cb}.control-head output{color:var(--accent);font:10px ui-monospace,monospace}.control input[type="range"]{width:100%;height:4px;display:block;margin:10px 0 2px;accent-color:var(--accent)}
+    .field {display:block;font-size:10px;color:#94a0b5;margin:12px 0}.field:first-child{margin-top:0}.field input,.field select{margin-top:7px;width:100%;border:1px solid #ffffff18;border-radius:8px;padding:9px 10px;background:#090e19;color:#dbe3f0;font-size:12px}.field input[type="text"]{cursor:text}
+    .toggle {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;color:#a9b6cb;margin:13px 0}.toggle:last-child{margin-bottom:0}.toggle input{appearance:none;width:29px;height:17px;border:1px solid #ffffff24;border-radius:12px;background:#202a3c;position:relative;margin:0;cursor:pointer;flex-shrink:0}.toggle input::before{content:"";width:11px;height:11px;position:absolute;left:2px;top:2px;border-radius:50%;background:#92a1ba;transition:transform .16s}.toggle input:checked{background:rgba(var(--accent-rgb),.25);border-color:rgba(var(--accent-rgb),.4)}.toggle input:checked::before{background:var(--accent);transform:translateX(12px)}
+    .save-section{display:grid;gap:9px}.save-section .button{width:100%}.save-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px}.save-status{font-size:9px;text-align:center;color:#7e8ca4;margin:3px 0 0;line-height:1.5}details summary{font-size:11px;color:#b4c1d5;list-style:none;display:flex;justify-content:space-between;align-items:center}details summary::after{content:"+";color:var(--accent);font-size:16px}details[open] summary::after{content:"−"}
+    footer {border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:20px;margin-top:30px;padding:23px 0 27px;color:#75829a;font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.3px}footer .clock{color:#a9b6cb}footer p{margin:0;line-height:1.8}
+    #toast {position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:100;background:#e9f8f3;color:#0a2d27;border:1px solid #79f5d455;border-radius:12px;padding:13px 20px;font-size:12px;box-shadow:0 12px 40px #0005;max-width:90vw;line-height:1.5}
+    dialog {background:#121b2b;color:var(--ink);border:1px solid #ffffff25;border-radius:24px;padding:28px;max-width:460px;width:calc(100% - 36px);box-shadow:0 30px 100px #0008}dialog::backdrop{background:#030710ba;backdrop-filter:blur(7px)}.help-head{display:flex;justify-content:space-between;align-items:center;gap:15px}dialog h2{font-weight:500;font-size:25px;letter-spacing:-.8px;margin:8px 0}dialog ol{padding-left:20px;color:#b1bdd1;font-size:13px;line-height:1.8}dialog li{padding:6px 0}dialog p{font-size:11px;line-height:1.8;color:var(--muted)}kbd{font:10px ui-monospace,monospace;background:#ffffff09;border:1px solid #ffffff19;border-radius:4px;padding:3px 5px}
+    .sr-only {position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(min-width:1500px){.arena{height:720px}.canvas-title{top:100px}.canvas-title h2{font-size:53px}}
+    @media(max-width:1100px){.shell{padding:0 22px}.studio{grid-template-columns:minmax(0,1fr) 290px;gap:16px}.section,.panel-head{padding-left:19px;padding-right:19px}.canvas-title h2{font-size:35px}.canvas-title p{max-width:200px}.arena{height:640px}.intro p{max-width:245px;line-height:1.6;text-align:right}.camera-card{width:175px}.demo-note{max-width:120px}}
+    @media(max-width:900px){.studio{grid-template-columns:1fr}.customizer{max-width:640px;width:100%;justify-self:center}.arena{height:640px}.canvas-title h2{font-size:44px}.canvas-title p{max-width:245px}.student{display:none}.intro p{display:none}.topbar{min-height:86px}.workspace-foot{font-size:9px}}
+    @media(max-width:540px){.shell{padding:0 14px}.topbar{gap:8px;min-height:80px}.brand-mark{width:34px;height:34px;border-radius:10px;font-size:12px}.brand{gap:9px}.brand-name{font-size:12px}.brand-sub{font-size:8px;letter-spacing:1px}.top-actions{gap:6px}.top-actions .button{font-size:10px;padding:10px}.top-actions .button .icon{width:14px;height:14px}.customize-text{display:none}.intro{padding:24px 2px 17px}.intro h1{font-size:24px}.arena{height:600px;min-height:0;border-radius:19px}.arena-top{top:18px;left:18px;right:18px}.canvas-title{top:82px;left:22px}.canvas-title h2{font-size:36px}.canvas-title p{font-size:10px;max-width:215px}.scene-dock{bottom:20px;gap:3px;padding:7px}.scene-dock button{width:32px;height:34px}.scene-dock .icon{width:18px;height:18px}.orbit-label{left:22px;bottom:100px;font-size:8px}.demo-note{right:20px;bottom:94px;font-size:9px;max-width:120px}.camera-card{right:14px;bottom:94px;width:140px}.metrics{gap:7px}.metric{padding:13px 10px;border-radius:12px}.metric-label{font-size:7px;letter-spacing:.6px;gap:4px}.metric-label .icon{width:11px;height:11px}.metric-value{font-size:17px}.metric-sub{font-size:8px}.workspace-foot{flex-direction:column;gap:3px}footer{margin-top:25px;align-items:start;font-size:8px;gap:15px}footer p:first-child{max-width:210px}.camera-notice{left:16px;right:16px;font-size:11px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+    @media(max-width:1100px) and (min-width:901px){.camera-card{width:210px}}
+    @media(max-width:540px){.camera-card{right:14px;bottom:94px;width:170px}.camera-ready{padding:24px 8px 10px;gap:6px}.camera-ready>.icon{width:23px;height:23px}.camera-ready strong{font-size:10px}.camera-ready p{display:none}.camera-ready .button{font-size:9px;padding:7px 9px}.gesture-guide{font-size:9px;gap:4px 12px}}
+  </style>
 </head>
-<body>
-<div id="stage">
-  <canvas id="particleCanvas"></canvas>
-
-  <div id="titleBar"><h1>M12345678 Mediapipe Demo</h1></div>
-
-  <div id="camWrap">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="overlayCanvas"></canvas>
+<body class="panel-open">
+  <a href="#studio" class="skip">Skip to the studio</a>
+  <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="13" rx="3"/><path d="m16 10 5-3v12l-5-3"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.2 5.8a5 5 0 0 0-7 0L12 7l-1.2-1.2a5 5 0 0 0-7 7L12 21l8.2-8.2a5 5 0 0 0 0-7Z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3L2.8 9.7l6.4-.9Z"/></symbol>
+    <symbol id="i-flower" viewBox="0 0 24 24"><path d="M12 8c-7-10-13 3-4 4-10 7 3 13 4 4 7 10 13-3 4-4 10-7-3-13-4-4Z"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-butterfly" viewBox="0 0 24 24"><path d="M12 11C4-3-3 8 9 14 1 23 12 24 12 14c0 10 11 9 3 0C27 8 20-3 12 11Zm0 0v7M12 10l-2-5m2 5 2-5"/></symbol>
+    <symbol id="i-spiral" viewBox="0 0 24 24"><path d="M12 12c-4-3-7 4-1 5 9 1 11-11 2-13C1 1-3 20 12 22"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 13 8-13 8Z"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-6a1.5 1.5 0 0 1 3 0v7-4a1.5 1.5 0 0 1 3 0v7c0 5-3 7-7 7-3 0-5-2-7-5l-3-4c-1-2 1-3 3-1l2 1Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Zm-4 9 3 3 5-6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h2a2 2 0 0 0 1-4c-2-1 0-3 2-3h2c4 0 2-11-7-11Z"/><path d="M7 9h.1M11 6h.1M16 8h.1M6 14h.1"/></symbol>
+  </defs></svg>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" id="initials" aria-hidden="true">AT</div><div><div class="brand-name" id="author-name">Anchal Tewari</div><div class="brand-sub">Experiments in human × AI</div></div></div>
+      <div class="top-actions"><span class="student" id="student-label">STUDENT / 335729</span><button type="button" class="button" id="customize" aria-expanded="true" aria-controls="customizer"><svg class="icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="customize-text">Customize</span><span class="sr-only">Toggle customization panel</span></button><button type="button" class="button primary" id="camera-button"><svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg><span id="camera-button-label">Start hand tracking</span></button></div>
+    </header>
+    <div class="intro"><div><div class="eyebrow">An interactive playground / 001</div><h1 id="page-title">AI Gesture Studio</h1></div><p>A human gesture. A thousand possibilities.</p></div>
+    <main class="studio" id="studio">
+      <div class="workspace">
+        <section class="arena" id="arena" aria-label="Interactive particle artwork">
+          <canvas id="particles" aria-label="Animated particle artwork. Use the shape buttons below to change the pattern."></canvas>
+          <div class="arena-top"><span class="mode-badge"><i class="dot" aria-hidden="true"></i><span id="mode-label">Demo mode / camera off</span></span><div style="display:flex;gap:7px"><button type="button" class="icon-button" id="help-button" aria-label="How to use the studio" title="How it works"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button><button type="button" class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen (F)"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg></button></div></div>
+          <div class="canvas-title"><h2>A little motion.<br><em>A lot of possibility.</em></h2><p id="stage-description">Control the particles with your hand.<br>Select Start hand tracking, then allow your camera.</p></div>
+          <div class="orbit-label"><span id="shape-number">03</span><b id="shape-name">FLOWER</b> / PARTICLE STUDY</div>
+          <div class="demo-note" id="demo-note" hidden></div>
+          <div class="camera-card" id="camera-card"><video id="video" autoplay playsinline muted></video><canvas id="tracking-overlay" aria-hidden="true"></canvas><div class="camera-ready" id="camera-ready"><svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg><strong id="camera-ready-title">See your hand here</strong><p id="camera-ready-note">Live camera with colored finger landmarks and gesture controls.</p><button type="button" class="button primary" id="start-tracking"><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg><span id="start-tracking-label">Start hand tracking</span></button></div><span class="camera-tag" id="camera-tag">HAND TRACKING / CAMERA OFF</span></div>
+          <div class="camera-notice" id="camera-notice" role="alert" hidden></div>
+          <div class="scene-dock" aria-label="Artwork controls"><button type="button" data-shape="heart" aria-label="Heart" aria-pressed="false" title="Heart"><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg></button><button type="button" data-shape="star" aria-label="Star" aria-pressed="false" title="Star"><svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></button><button type="button" data-shape="flower" aria-label="Flower" aria-pressed="true" title="Flower"><svg class="icon" aria-hidden="true"><use href="#i-flower"/></svg></button><button type="button" data-shape="butterfly" aria-label="Butterfly" aria-pressed="false" title="Butterfly"><svg class="icon" aria-hidden="true"><use href="#i-butterfly"/></svg></button><button type="button" data-shape="spiral" aria-label="Spiral" aria-pressed="false" title="Spiral"><svg class="icon" aria-hidden="true"><use href="#i-spiral"/></svg></button><div class="dock-divider" aria-hidden="true"></div><button type="button" id="next-palette" aria-label="Next color palette" title="Next palette (C)"><svg class="icon" aria-hidden="true"><use href="#i-palette"/></svg></button><button type="button" id="pause" aria-label="Pause motion" aria-pressed="false" title="Pause (Space)"><svg class="icon" aria-hidden="true"><use id="pause-icon" href="#i-pause"/></svg></button></div>
+        </section>
+        <div class="gesture-guide" aria-label="Hand gesture controls"><span><b>✊ Fist</b> contract particles</span><span><b>🖐 Open hand</b> expand particles</span><span><b>✊ → 🖐</b> next shape + color</span><span><b>Move closer</b> smaller particle range</span></div>
+        <div class="metrics" aria-label="Gesture information">
+          <div class="metric"><div class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg>Control hand</div><div class="metric-value" id="hand-value">Camera off</div><div class="metric-sub" id="hand-note">Select Start hand tracking</div><div class="meter"><i id="hand-meter"></i></div></div>
+          <div class="metric"><div class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg>Hand openness</div><div class="metric-value" id="open-value">68%</div><div class="metric-sub" id="open-note">Simulated expansion</div><div class="meter"><i id="open-meter"></i></div></div>
+          <div class="metric"><div class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg>Relative distance</div><div class="metric-value" id="distance-value">—</div><div class="metric-sub" id="distance-note">Available with camera</div><div class="meter"><i id="distance-meter"></i></div></div>
+        </div>
+        <div class="workspace-foot"><div><span>✧</span> Close your hand, then open it to switch shape and color.</div><div id="render-stats">1,800 particles · interactive canvas</div></div>
+      </div>
+      <aside class="customizer" id="customizer" aria-label="Customization panel">
+        <div class="panel-head"><div class="eyebrow">Your creative controls</div><h2>Make it yours.</h2><p>A new mood is a few small changes away.</p></div>
+        <section class="section" aria-labelledby="color-heading"><h3 class="section-title" id="color-heading">01 / Color story</h3><div class="presets"><button type="button" class="preset" data-preset="aurora" aria-pressed="true"><span class="preset-swatch" aria-hidden="true"><i style="--swatch:#79f5d4"></i><i style="--swatch:#a18bff"></i></span>Aurora</button><button type="button" class="preset" data-preset="ember" aria-pressed="false"><span class="preset-swatch" aria-hidden="true"><i style="--swatch:#ffcb85"></i><i style="--swatch:#ff7f91"></i></span>Ember</button><button type="button" class="preset" data-preset="electric" aria-pressed="false"><span class="preset-swatch" aria-hidden="true"><i style="--swatch:#77b9ff"></i><i style="--swatch:#f08bff"></i></span>Electric</button></div><div class="color-row"><label class="color-field"><input type="color" id="color-a" value="#79f5d4" aria-label="Primary color">Primary</label><label class="color-field"><input type="color" id="color-b" value="#a18bff" aria-label="Secondary color">Accent</label></div></section>
+        <section class="section" aria-labelledby="motion-heading"><h3 class="section-title" id="motion-heading">02 / Shape &amp; motion</h3><label class="field">Particle shape<select id="shape-select"><option value="heart">Heart</option><option value="star">Star</option><option value="flower" selected>Flower</option><option value="butterfly">Butterfly</option><option value="spiral">Spiral</option></select></label><div class="control"><label class="control-head" for="density">Particle density<output id="density-output" for="density">1,800</output></label><input type="range" id="density" min="500" max="4000" step="100" value="1800"></div><div class="control"><label class="control-head" for="speed">Motion speed<output id="speed-output" for="speed">0.8×</output></label><input type="range" id="speed" min="0.2" max="1.8" step="0.1" value="0.8"></div><div class="control"><label class="control-head" for="glow">Particle glow<output id="glow-output" for="glow">70%</output></label><input type="range" id="glow" min="10" max="100" step="5" value="70"></div><div class="control"><label class="control-head" for="expansion">Demo expansion<output id="expansion-output" for="expansion">68%</output></label><input type="range" id="expansion" min="15" max="100" step="1" value="68"></div></section>
+        <section class="section" aria-labelledby="display-heading"><h3 class="section-title" id="display-heading">03 / Display</h3><label class="toggle">Ambient starlight<input id="stars-toggle" type="checkbox" checked></label><label class="toggle">Show camera preview<input id="preview-toggle" type="checkbox" checked></label><label class="toggle">Body tracking overlay<input id="pose-toggle" type="checkbox" checked></label></section>
+        <section class="section"><details id="identity-details"><summary>Your name &amp; page title</summary><div><label class="field">Your name<input type="text" id="name-input" maxlength="50" value="Anchal Tewari" autocomplete="off"></label><label class="field">Student ID<input type="text" id="student-input" maxlength="24" value="335729" autocomplete="off"></label><label class="field">Page title<input type="text" id="title-input" maxlength="60" value="AI Gesture Studio" autocomplete="off"></label></div></details></section>
+        <section class="section save-section" aria-label="Save your customization"><button type="button" class="button primary" id="download-html"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Download my page<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><div class="save-tools"><button type="button" class="button small" id="export-settings">Export settings</button><button type="button" class="button small" id="import-settings">Import settings</button></div><button type="button" class="button small" id="reset">Reset this design</button><input type="file" id="import-file" accept="application/json,.json" hidden><p class="save-status" id="save-status" role="status">Changes save on this device automatically.</p></section>
+      </aside>
+    </main>
+    <footer><p><span id="footer-name">Anchal Tewari</span> / <span id="footer-id">335729</span><br>Built with Google MediaPipe · Inspired by a classroom demo.</p><p><span class="clock" id="clock">--:--:--</span> <span id="date"></span><br>LOCAL TIME · <span id="privacy-status">CAMERA OFF</span></p></footer>
   </div>
+  <dialog id="help-dialog" aria-labelledby="help-title"><div class="help-head"><div><div class="eyebrow">A quick field guide</div><h2 id="help-title">Make a little magic.</h2></div><button type="button" class="icon-button" id="close-help" aria-label="Close help"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><ol><li>Explore the shapes and palettes in demo mode. Customize the colors, density, glow, and motion.</li><li>Select <strong>Start hand tracking</strong> and allow camera access. Hold either hand in view, in good light.</li><li>Close your hand briefly, then open it to switch shape and color. Move closer to make the artwork smaller.</li></ol><p><svg class="icon" aria-hidden="true" style="vertical-align:middle;width:14px"><use href="#i-shield"/></svg> Camera processing happens in your browser. This page does not record or upload your camera frames. Models download from Google and jsDelivr when you enable the camera.</p><p>Distance is an estimate from hand size, not a measurement in centimeters.</p><p>Shortcuts: <kbd>N</kbd> next shape &nbsp; <kbd>C</kbd> next palette &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> fullscreen.</p><p>Your changes save in this browser. <strong>Download my page</strong> embeds your design as the default in a fresh HTML file you can publish.</p></dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p style="padding:20px">Please enable JavaScript to use the interactive studio.</p></noscript>
+  <!-- These values are the page defaults. The visual controls can change them without editing code. -->
+  <script id="studio-config" type="application/json">{"name":"Anchal Tewari","studentId":"335729","title":"AI Gesture Studio","shape":"flower","colorA":"#79f5d4","colorB":"#a18bff","density":1800,"speed":0.8,"glow":70,"expansion":68,"stars":true,"preview":true,"pose":true}</script>
+  <script id="studio-app">
+  (() => {
+    'use strict';
+    // Capture a clean template before runtime updates. Exports contain settings,
+    // not camera frames, canvas pixels, saved browser data, or a running stream.
+    const PAGE_TEMPLATE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const $ = id => document.getElementById(id);
+    const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+    const SHAPES = ['heart', 'star', 'flower', 'butterfly', 'spiral'];
+    const PRESETS = {
+      aurora: ['#79f5d4', '#a18bff'],
+      ember: ['#ffcb85', '#ff7f91'],
+      electric: ['#77b9ff', '#f08bff']
+    };
+    const FACTORY = {
+      name: 'Anchal Tewari', studentId: '335729', title: 'AI Gesture Studio',
+      shape: 'flower', colorA: '#79f5d4', colorB: '#a18bff', density: 1800,
+      speed: 0.8, glow: 70, expansion: 68, stars: true, preview: true, pose: true
+    };
+    function sanitizeSettings(data, base = FACTORY) {
+      const next = { ...base };
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return next;
+      for (const [key, max] of [['name',50],['studentId',24],['title',60]]) {
+        if (typeof data[key] === 'string') next[key] = data[key].replace(/[\u0000-\u001f]/g,'').trim().slice(0,max) || base[key];
+      }
+      if (SHAPES.includes(data.shape)) next.shape = data.shape;
+      for (const key of ['colorA','colorB']) if (/^#[0-9a-f]{6}$/i.test(data[key])) next[key] = data[key].toLowerCase();
+      for (const [key,low,high,step] of [['density',500,4000,100],['speed',0.2,1.8,0.1],['glow',10,100,5],['expansion',15,100,1]]) {
+        if (typeof data[key] === 'number' && Number.isFinite(data[key])) next[key] = Number((Math.round(clamp(data[key],low,high)/step)*step).toFixed(2));
+      }
+      for (const key of ['stars','preview','pose']) if (typeof data[key] === 'boolean') next[key] = data[key];
+      return next;
+    }
+    let defaults;
+    try { defaults = sanitizeSettings(JSON.parse($('studio-config').textContent)); } catch { defaults = { ...FACTORY }; }
+    // Namespace by URL so separately hosted pages do not overwrite one another.
+    const STORAGE_KEY = 'anchal-gesture-studio:v1:' + location.pathname + ':' + ($('studio-config').getAttribute('data-edition') || 'base');
+    let settings = { ...defaults };
+    let storageAvailable = true;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) settings = sanitizeSettings(JSON.parse(saved), defaults);
+    } catch { storageAvailable = false; }
 
-  <div id="infoPanel">
-    <div class="clock" id="clock">--:--:--</div>
-    <div class="date" id="dateText">----/--/--</div>
-    <div class="row">Right Hand: <span id="handState" class="none">Not Detected</span></div>
-    <div class="row">Openness: <b id="openPct">--</b>
-      <div class="bar"><i id="openBar"></i></div>
-    </div>
-    <div class="row">Distance to Screen: <b id="distText">--</b>
-      <div class="bar"><i id="distBar"></i></div>
-    </div>
-    <div class="row">Shape: <b id="shapeText">Heart</b>&nbsp;&nbsp;Color: <b id="colorText">-</b></div>
-    <div class="row" style="font-size:13px;color:#8899bb">Fist &rarr; Open switches shape &amp; color | Moving closer shrinks the particle range</div>
-  </div>
+    const arena = $('arena'), canvas = $('particles'), ctx = canvas.getContext('2d', {alpha:true});
+    const video = $('video'), overlay = $('tracking-overlay'), overlayCtx = overlay.getContext('2d');
+    let width = 1, height = 1, dpr = 1, particles = [], sprites = [], elapsed = 0;
+    let frameTime = 0, lastStats = 0, frameCount = 0, toastTimer, saveTimer;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let paused = reduceMotion.matches;
+    let cameraMode = 'demo', cameraGeneration = 0, currentStream = null, activeModels = null;
+    let lastVideoTime = -1, lastInference = 0, lastPoseInference = 0, lastGestureChange = 0;
+    let rawOpen = settings.expansion / 100, smoothOpen = rawOpen, rawScale = 1, smoothScale = 1;
+    let lastWrist = null, heldClosedAt = 0, heldOpenAt = 0, gestureArmed = false;
+    let latestPose = [], visionModulePromise;
+    const starField = Array.from({length:85}, () => ({x:Math.random(),y:Math.random(),r:Math.random()*.8+.3,p:Math.random()*6.28}));
 
-  <div id="loading">
-    <div class="spinner"></div>
-    <div id="loadingText">Loading AI models, please wait and allow camera access&hellip;</div>
-  </div>
-</div>
-
-<script type="module">
-import {
-  FilesetResolver,
-  HandLandmarker,
-  PoseLandmarker
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
-
-/* ============ DOM ============ */
-const video          = document.getElementById("video");
-const overlayCanvas  = document.getElementById("overlayCanvas");
-const overlayCtx     = overlayCanvas.getContext("2d");
-const particleCanvas = document.getElementById("particleCanvas");
-const pCtx           = particleCanvas.getContext("2d");
-const loadingEl      = document.getElementById("loading");
-const loadingTextEl  = document.getElementById("loadingText");
-
-const clockEl   = document.getElementById("clock");
-const dateEl    = document.getElementById("dateText");
-const handEl    = document.getElementById("handState");
-const openPctEl = document.getElementById("openPct");
-const openBarEl = document.getElementById("openBar");
-const distEl    = document.getElementById("distText");
-const distBarEl = document.getElementById("distBar");
-const shapeEl   = document.getElementById("shapeText");
-const colorEl   = document.getElementById("colorText");
-
-function resize() {
-  particleCanvas.width  = innerWidth;
-  particleCanvas.height = innerHeight;
-}
-addEventListener("resize", resize);
-resize();
-
-/* ============ Clock ============ */
-const WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-function tickClock() {
-  const n = new Date();
-  clockEl.textContent = n.toLocaleTimeString("en-US", { hour12: false });
-  const y = n.getFullYear();
-  const m = String(n.getMonth() + 1).padStart(2, "0");
-  const d = String(n.getDate()).padStart(2, "0");
-  dateEl.textContent = `${y}-${m}-${d} ${WEEK[n.getDay()]}`;
-}
-setInterval(tickClock, 500);
-tickClock();
-
-/* ============ Shape definitions (return unit coordinates -1..1) ============ */
-function heartPoint(t) {
-  const x = 16 * Math.pow(Math.sin(t), 3);
-  const y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
-  return { x: x/17, y: -y/17 };
-}
-function starPoint(t) {
-  const spikes = 5, outer = 1, inner = 0.42;
-  const seg = (t / (Math.PI*2)) * spikes * 2;
-  const i = Math.floor(seg), frac = seg - i;
-  const r1 = (i % 2 === 0) ? outer : inner;
-  const r2 = (i % 2 === 0) ? inner : outer;
-  const a1 = (i    / (spikes*2)) * Math.PI*2 - Math.PI/2;
-  const a2 = ((i+1)/ (spikes*2)) * Math.PI*2 - Math.PI/2;
-  const x = r1*Math.cos(a1) + (r2*Math.cos(a2) - r1*Math.cos(a1))*frac;
-  const y = r1*Math.sin(a1) + (r2*Math.sin(a2) - r1*Math.sin(a1))*frac;
-  return { x, y };
-}
-function flowerPoint(t) {          // five-petal flower (rose curve)
-  const r = Math.abs(Math.cos(2.5 * t));
-  return { x: r*Math.cos(t), y: r*Math.sin(t) };
-}
-function butterflyPoint(t) {       // butterfly curve
-  const s = t * 6;                 // needs a longer parameter domain
-  const r = Math.exp(Math.sin(s)) - 2*Math.cos(4*s) + Math.pow(Math.sin((2*s - Math.PI)/24), 5);
-  return { x: r*Math.sin(s)/4, y: -r*Math.cos(s)/4 + 0.15 };
-}
-function spiralPoint(t) {          // three-turn spiral
-  const turns = 3;
-  const a = t * turns;
-  const r = t / (Math.PI*2);
-  return { x: r*Math.cos(a), y: r*Math.sin(a) };
-}
-
-const SHAPES = [
-  { name: "Heart",     fn: heartPoint },
-  { name: "Star",      fn: starPoint },
-  { name: "Flower",    fn: flowerPoint },
-  { name: "Butterfly", fn: butterflyPoint },
-  { name: "Spiral",    fn: spiralPoint },
-];
-
-/* Distinct color pairs (primary / secondary) */
-const PALETTES = [
-  { name: "Red",     a: "#ff2d55", b: "#ff9500" },
-  { name: "Teal",    a: "#00ffa8", b: "#00ccff" },
-  { name: "Blue",    a: "#3a7bff", b: "#9d6bff" },
-  { name: "Gold",    a: "#ffd60a", b: "#ff7b00" },
-  { name: "Magenta", a: "#ff2dcb", b: "#7a5cff" },
-  { name: "White",   a: "#ffffff", b: "#9adcff" },
-];
-
-/* ============ Particle system ============ */
-const N = 4000;
-const particles = [];
-for (let i = 0; i < N; i++) {
-  particles.push({
-    x: Math.random()*innerWidth,
-    y: Math.random()*innerHeight,
-    vx: 0, vy: 0,
-    t: (i / N) * Math.PI * 2,          // shape parameter
-    jx: (Math.random()-0.5),           // random scatter direction
-    jy: (Math.random()-0.5),
-    size: 1.5 + Math.random()*2.5,
-    tw: Math.random()*Math.PI*2,       // twinkle phase
-  });
-}
-
-let shapeIdx = 0;
-let paletteIdx = 0;
-let openness = 0.5;        // 0=fist 1=fully open (smoothed)
-let rawOpenness = 0.5;
-let distScale = 1.0;       // overall scale from distance (smoothed)
-let rawDistScale = 1.0;
-let handDetected = false;
-let wasClosed = false;
-
-function applyShape() {
-  shapeEl.textContent = SHAPES[shapeIdx].name;
-  const p = PALETTES[paletteIdx];
-  colorEl.textContent = p.name;
-  colorEl.style.color = p.a;
-}
-applyShape();
-
-function drawParticles() {
-  const W = particleCanvas.width, H = particleCanvas.height;
-  pCtx.clearRect(0, 0, W, H);
-
-  // smoothing
-  openness  += (rawOpenness  - openness)  * 0.12;
-  distScale += (rawDistScale - distScale) * 0.08;
-
-  const cx = W/2, cy = H/2 + 20;
-  const baseR = Math.min(W, H) * 0.52 * distScale;
-  // shrinks to 8% on a fist, 100% + extra scatter when fully open (may fly off-screen)
-  const scale = baseR * (0.08 + 0.92 * openness);
-  const scatter = Math.max(0, openness - 0.55) * baseR * 6.0;  // bursts outward near fully open
-
-  const pal = PALETTES[paletteIdx];
-  const shapeFn = SHAPES[shapeIdx].fn;
-  const time = performance.now() / 1000;
-
-  pCtx.globalCompositeOperation = "lighter";
-  for (const p of particles) {
-    const pt = shapeFn(p.t);
-    const tx = cx + pt.x * scale + p.jx * scatter;
-    const ty = cy + pt.y * scale + p.jy * scatter;
-    // spring-follow
-    p.vx = (p.vx + (tx - p.x) * 0.045) * 0.86;
-    p.vy = (p.vy + (ty - p.y) * 0.045) * 0.86;
-    p.x += p.vx;
-    p.y += p.vy;
-
-    const twinkle = 0.55 + 0.45 * Math.sin(time*3 + p.tw);
-    pCtx.globalAlpha = twinkle * (0.35 + 0.65*openness);
-    pCtx.fillStyle = (p.t % (Math.PI/2) < Math.PI/4) ? pal.a : pal.b;
-    pCtx.beginPath();
-    pCtx.arc(p.x, p.y, p.size * (0.6 + 0.6*openness), 0, Math.PI*2);
-    pCtx.fill();
-  }
-  pCtx.globalAlpha = 1;
-  pCtx.globalCompositeOperation = "source-over";
-}
-
-/* ============ MediaPipe ============ */
-let handLandmarker, poseLandmarker;
-
-async function init() {
-  // Start the models (network download + WASM init) and the camera permission
-  // prompt at the same time instead of one after another. getUserMedia's
-  // permission dialog and device startup don't need the models to be ready,
-  // so running them in parallel noticeably cuts the time to first frame.
-  const modelsPromise = (async () => {
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-    );
-    return Promise.all([
-      HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 2
-      }),
-      PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numPoses: 1
-      })
-    ]);
+    function toast(message) {
+      $('toast').textContent = message; $('toast').hidden = false;
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3600);
+    }
+    function saveSettings() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); storageAvailable = true;
+          $('save-status').textContent = 'Saved on this device. Download to share your design.';
+        } catch {
+          storageAvailable = false;
+          $('save-status').textContent = 'Browser storage is unavailable. Download your page to keep changes.';
+        }
+      }, 250);
+    }
+    function shapePoint(kind, t) {
+      if (kind === 'heart') return [16*Math.sin(t)**3/18, -(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/18];
+      if (kind === 'star') {
+        const seg = t/(Math.PI*2)*10, i = Math.floor(seg), f = seg-i;
+        const r1 = i%2 ? .43 : 1, r2 = i%2 ? 1 : .43;
+        const a1 = i/10*Math.PI*2-Math.PI/2, a2 = (i+1)/10*Math.PI*2-Math.PI/2;
+        return [r1*Math.cos(a1)*(1-f)+r2*Math.cos(a2)*f, r1*Math.sin(a1)*(1-f)+r2*Math.sin(a2)*f];
+      }
+      if (kind === 'flower') { const r = .76+.25*Math.cos(5*t); return [r*Math.cos(t),r*Math.sin(t)]; }
+      if (kind === 'butterfly') {
+        const a=t*6, r=Math.exp(Math.sin(a))-2*Math.cos(4*a)+Math.sin((2*a-Math.PI)/24)**5;
+        return [r*Math.sin(a)/3.5,-r*Math.cos(a)/3.5+.12];
+      }
+      const r=.08+.92*t/(Math.PI*2), a=t*3;
+      return [r*Math.cos(a),r*Math.sin(a)];
+    }
+    function setTargets() {
+      for (const p of particles) {
+        const target = shapePoint(settings.shape, p.t);
+        p.tx=target[0]*p.ring; p.ty=target[1]*p.ring;
+      }
+    }
+    function buildParticles() {
+      const previous=particles;
+      particles=Array.from({length:settings.density},(_,i) => {
+        const t = (i/settings.density)*Math.PI*2;
+        const ring = Math.random()<.67 ? .88+Math.random()*.17 : .2+Math.sqrt(Math.random())*.72;
+        const old=previous[i];
+        return { t,ring,tx:0,ty:0,x:old?.x??width*(.3+Math.random()*.4),y:old?.y??height*(.3+Math.random()*.4),
+          vx:old?.vx??0,vy:old?.vy??0,size:.7+Math.random()*1.8,phase:Math.random()*6.28,jx:Math.random()-.5,jy:Math.random()-.5,color:i%3===0?1:0 };
+      });
+      setTargets();
+    }
+    function buildSprites() {
+      sprites=[settings.colorA,settings.colorB].map(color => {
+        const sprite=document.createElement('canvas'); sprite.width=sprite.height=64;
+        const c=sprite.getContext('2d'), gradient=c.createRadialGradient(32,32,0,32,32,32);
+        gradient.addColorStop(0,'#ffffff'); gradient.addColorStop(.07,color); gradient.addColorStop(.23,color+'b8'); gradient.addColorStop(1,color+'00');
+        c.fillStyle=gradient; c.fillRect(0,0,64,64); return sprite;
+      });
+    }
+    function resize() {
+      const rect=arena.getBoundingClientRect(), oldW=width,oldH=height;
+      width=Math.max(1,rect.width); height=Math.max(1,rect.height); dpr=Math.min(devicePixelRatio||1,2);
+      canvas.width=Math.round(width*dpr); canvas.height=Math.round(height*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      for(const p of particles) { p.x*=width/oldW; p.y*=height/oldH; }
+      if(paused)settleParticles();
+      drawFrame(0);
+    }
+    function currentPreset() { return Object.keys(PRESETS).find(key => PRESETS[key][0]===settings.colorA && PRESETS[key][1]===settings.colorB); }
+    function applySettings(rebuild = false) {
+      document.documentElement.style.setProperty('--accent',settings.colorA);
+      document.documentElement.style.setProperty('--secondary',settings.colorB);
+      const rgb=settings.colorA.match(/[a-f\d]{2}/gi).map(x=>parseInt(x,16)).join(',');
+      document.documentElement.style.setProperty('--accent-rgb',rgb);
+      // All user-provided text is assigned as text, never interpreted as markup.
+      $('author-name').textContent=$('footer-name').textContent=settings.name;
+      $('student-label').textContent='STUDENT / '+settings.studentId; $('footer-id').textContent=settings.studentId;
+      $('page-title').textContent=settings.title; document.title=settings.name+' | '+settings.title;
+      $('initials').textContent=settings.name.split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]).join('').toUpperCase();
+      $('shape-number').textContent=String(SHAPES.indexOf(settings.shape)+1).padStart(2,'0');
+      $('shape-name').textContent=settings.shape.toUpperCase(); $('shape-select').value=settings.shape;
+      for (const button of document.querySelectorAll('[data-shape]')) button.setAttribute('aria-pressed',String(button.dataset.shape===settings.shape));
+      for (const button of document.querySelectorAll('[data-preset]')) button.setAttribute('aria-pressed',String(button.dataset.preset===currentPreset()));
+      for (const [id,key] of [['color-a','colorA'],['color-b','colorB'],['density','density'],['speed','speed'],['glow','glow'],['expansion','expansion'],['name-input','name'],['student-input','studentId'],['title-input','title']]) {
+        if (document.activeElement!==$(id)) $(id).value=String(settings[key]);
+      }
+      for (const [id,key] of [['stars-toggle','stars'],['preview-toggle','preview'],['pose-toggle','pose']]) $(id).checked=settings[key];
+      $('density-output').textContent=settings.density.toLocaleString(); $('speed-output').textContent=settings.speed.toFixed(1)+'×';
+      $('glow-output').textContent=settings.glow+'%'; $('expansion-output').textContent=settings.expansion+'%';
+      $('expansion').disabled=cameraMode==='live';
+      refreshCameraPanel();
+      if (cameraMode!=='live') rawOpen=settings.expansion/100;
+      if (rebuild) buildParticles(); else setTargets();
+      buildSprites();
+      if(paused) { settleParticles(); drawFrame(0); }
+    }
+    function updateSettings(patch) {
+      const oldDensity=settings.density;
+      settings=sanitizeSettings(patch,settings); applySettings(oldDensity!==settings.density); saveSettings();
+      if(cameraMode==='live'&&settings.pose&&settings.preview)void ensurePose();
+    }
+    function nextShape() { updateSettings({shape:SHAPES[(SHAPES.indexOf(settings.shape)+1)%SHAPES.length]}); }
+    function nextPalette() { const keys=Object.keys(PRESETS), key=keys[(keys.indexOf(currentPreset())+1)%keys.length]; updateSettings({colorA:PRESETS[key][0],colorB:PRESETS[key][1]}); }
+    function geometry() {
+      const panelVisible=cameraMode!=='live'||settings.preview;
+      const centerX=width*(panelVisible&&width>650?.39:.47), centerY=height*.57;
+      const radius=Math.min(width*.35,height*.34)*smoothScale*(.08+.92*smoothOpen);
+      const scatter=Math.max(0,smoothOpen-.72)*radius*1.4;
+      return {centerX,centerY,radius,scatter};
+    }
+    function settleParticles() {
+      smoothOpen=rawOpen; smoothScale=rawScale;
+      const {centerX,centerY,radius,scatter}=geometry();
+      for(const p of particles) { p.x=centerX+p.tx*radius+p.jx*scatter;p.y=centerY+p.ty*radius+p.jy*scatter;p.vx=p.vy=0; }
+    }
+    function drawFrame(dt) {
+      ctx.clearRect(0,0,width,height);
+      const time=elapsed*settings.speed;
+      if(settings.stars) {
+        ctx.fillStyle='#b9ccec';
+        for(const star of starField) {
+          ctx.globalAlpha=.12+.18*(.5+.5*Math.sin(time*.4+star.p));ctx.beginPath();ctx.arc(star.x*width,star.y*height,star.r,0,Math.PI*2);ctx.fill();
+        }
+      }
+      smoothOpen+=(rawOpen-smoothOpen)*Math.min(1,dt*7);
+      smoothScale+=(rawScale-smoothScale)*Math.min(1,dt*5);
+      const {centerX,centerY,radius,scatter}=geometry();
+      const rotation=paused?0:Math.sin(time*.18)*.12, co=Math.cos(rotation),si=Math.sin(rotation);
+      const breathe=paused?1:1+Math.sin(time*.7)*.025;
+      ctx.globalCompositeOperation='lighter';
+      const step=dt*60;
+      for(const p of particles) {
+        const rx=p.tx*co-p.ty*si, ry=p.tx*si+p.ty*co;
+        const drift=paused?0:Math.sin(time*.55+p.phase)*3;
+        const tx=centerX+rx*radius*breathe+p.jx*scatter+drift;
+        const ty=centerY+ry*radius*breathe+p.jy*scatter+drift;
+        if(!paused) {
+          const stiffness=.035*step,damping=Math.pow(.81,step);
+          p.vx=(p.vx+(tx-p.x)*stiffness)*damping;p.vy=(p.vy+(ty-p.y)*stiffness)*damping;
+          p.x+=p.vx*step;p.y+=p.vy*step;
+        }
+        const twinkle=paused?.8:.6+.4*Math.sin(time*1.4+p.phase);
+        const size=p.size*(2.4+settings.glow*.055);
+        ctx.globalAlpha=(.3+twinkle*.5)*(.45+settings.glow/180);
+        ctx.drawImage(sprites[p.color],p.x-size/2,p.y-size/2,size,size);
+      }
+      ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+    }
+    function updateDemoMetrics() {
+      $('hand-value').textContent=cameraMode==='loading'?'Starting…':'Camera off';$('hand-note').textContent='Select Start hand tracking';$('hand-meter').style.width='0%';
+      $('open-value').textContent=settings.expansion+'%';$('open-note').textContent='Simulated expansion';$('open-meter').style.width=settings.expansion+'%';
+      $('distance-value').textContent='—';$('distance-note').textContent='Available with camera';$('distance-meter').style.width='0%';
+    }
+    function refreshCameraPanel() {
+      $('camera-card').hidden=cameraMode==='live'&&!settings.preview;
+      video.hidden=cameraMode==='demo';overlay.hidden=cameraMode!=='live';
+      $('camera-card').classList.toggle('is-live',cameraMode==='live');
+      $('camera-card').classList.toggle('is-loading',cameraMode==='loading');
+      $('camera-ready').hidden=cameraMode==='live';
+      $('camera-ready-title').textContent=cameraMode==='loading'?'Starting hand tracking…':'See your hand here';
+      $('camera-ready-note').textContent=cameraMode==='loading'?'Allow your camera, then wait for the hand model to load.':'Live camera with colored finger landmarks and gesture controls.';
+      $('start-tracking-label').textContent=cameraMode==='loading'?'Cancel':'Start hand tracking';
+      $('camera-tag').textContent=cameraMode==='live'?'LIVE HAND TRACKING / MIRRORED':cameraMode==='loading'?'STARTING CAMERA + HAND MODEL':'HAND TRACKING / CAMERA OFF';
+      if(cameraMode==='live')$('mode-label').textContent=activeModels?.pose&&settings.pose&&settings.preview?'Live / hands + body':'Live / hand tracking';
+    }
+    function setCameraMode(mode) {
+      cameraMode=mode;
+      $('camera-button-label').textContent=mode==='live'?'Stop camera':mode==='loading'?'Cancel loading':'Start hand tracking';
+      $('mode-label').textContent=mode==='loading'?'Starting hand tracking…':'Camera off / manual demo';
+      $('privacy-status').textContent=mode==='live'?'CAMERA ON · ON DEVICE':mode==='loading'?'STARTING CAMERA':'CAMERA OFF';
+      refreshCameraPanel();$('demo-note').hidden=true;$('expansion').disabled=mode==='live';
+      $('stage-description').innerText=mode==='live'?'Your hand is the controller.\nClose, then open, to change the scene.':'Control the particles with your hand.\nSelect Start hand tracking, then allow your camera.';
+      if(mode!=='live') updateDemoMetrics();
+    }
+    function resetGesture() {heldClosedAt=heldOpenAt=0;gestureArmed=false;lastWrist=null;}
+    function releaseStream(stream) { if(stream) for(const track of stream.getTracks()) track.stop(); }
+    function releaseModels(models) {if(models) {try{models.hand.close();}catch{}try{models.pose?.close();}catch{}}}
+    function stopCamera(message) {
+      ++cameraGeneration;releaseStream(currentStream);currentStream=null;
+      video.pause();video.srcObject=null;releaseModels(activeModels);activeModels=null;
+      latestPose=[];lastVideoTime=-1;lastInference=lastPoseInference=0;resetGesture();
+      overlayCtx.clearRect(0,0,overlay.width,overlay.height);rawScale=1;rawOpen=settings.expansion/100;
+      setCameraMode('demo');if(paused){settleParticles();drawFrame(0);}if(message)toast(message);
+    }
+    async function loadVision() {
+      if(!visionModulePromise) {
+        visionModulePromise=import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs')
+          .then(async module=>({module,fileset:await module.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm')}))
+          .catch(error=>{visionModulePromise=null;throw error;});
+      }
+      return visionModulePromise;
+    }
+    async function createTracker(Task, fileset, path, extra) {
+      const options={baseOptions:{modelAssetPath:path,delegate:'GPU'},runningMode:'VIDEO',...extra};
+      try{return await Task.createFromOptions(fileset,options);}catch{
+        return Task.createFromOptions(fileset,{...options,baseOptions:{modelAssetPath:path,delegate:'CPU'}});
+      }
+    }
+    async function loadModels() {
+      const {module,fileset}=await loadVision();
+      const hand=await createTracker(module.HandLandmarker,fileset,'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',{numHands:2,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.6});
+      return {hand,pose:null,posePromise:null,fileset,HandLandmarker:module.HandLandmarker,PoseLandmarker:module.PoseLandmarker};
+    }
+    async function ensurePose() {
+      const bundle=activeModels,token=cameraGeneration;
+      if(cameraMode!=='live'||!bundle||bundle.pose||bundle.posePromise||!settings.pose||!settings.preview)return;
+      // Body tracking is optional: it cannot delay or disable the hand controller.
+      bundle.posePromise=createTracker(bundle.PoseLandmarker,bundle.fileset,'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',{numPoses:1,outputSegmentationMasks:false})
+        .then(pose=>{
+          if(token!==cameraGeneration||activeModels!==bundle){pose.close();return;}
+          bundle.pose=pose;refreshCameraPanel();
+        })
+        .catch(()=>{if(token===cameraGeneration&&activeModels===bundle)toast('Hand tracking is ready. The optional body overlay could not load.');})
+        .finally(()=>{bundle.posePromise=null;});
+      return bundle.posePromise;
+    }
+    async function startCamera() {
+      if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia) {
+        $('camera-notice').textContent='Open this page in its own browser tab using HTTPS (such as GitHub Pages) or localhost, then select Start hand tracking. Embedded previews may block camera access.';$('camera-notice').hidden=false;return;
+      }
+      const token=++cameraGeneration;let stream=null,models=null,streamEnded;
+      $('camera-notice').hidden=true;setCameraMode('loading');
+      try {
+        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+        if(token!==cameraGeneration){releaseStream(stream);return;}
+        currentStream=stream;video.srcObject=stream;
+        streamEnded=()=>{if(token===cameraGeneration)stopCamera('Camera disconnected. Demo mode is ready.');};
+        for(const track of stream.getVideoTracks())track.addEventListener('ended',streamEnded,{once:true});
+        await video.play();
+        if(token!==cameraGeneration){releaseStream(stream);return;}
+        $('mode-label').textContent='Camera connected / loading hand model…';
+        $('camera-ready-title').textContent='Camera connected';$('camera-ready-note').textContent='Loading the hand model. Your finger landmarks will appear here.';
+        models=await loadModels();
+        if(token!==cameraGeneration){releaseStream(stream);releaseModels(models);return;}
+        activeModels=models;lastVideoTime=-1;lastInference=lastPoseInference=0;
+        overlay.width=video.videoWidth||640;overlay.height=video.videoHeight||480;
+        setCameraMode('live');toast('Hold either hand in view. Close it briefly, then open.');void ensurePose();
+      } catch(error) {
+        releaseStream(stream);releaseModels(models);
+        if(token!==cameraGeneration)return;
+        currentStream=null;activeModels=null;video.pause();video.srcObject=null;setCameraMode('demo');
+        const errors={NotAllowedError:'Camera access is blocked or not allowed here. Open the page in its own browser tab on HTTPS or localhost, then allow camera access in your browser site settings.',NotFoundError:'No camera was found. Connect a camera or use demo mode.',NotReadableError:'Your camera may be in use by another app. Close that app and try again.',OverconstrainedError:'This camera could not start with the requested settings. Try another camera or browser.'};
+        $('camera-notice').textContent=errors[error.name]||error.message||'The camera could not start. Demo mode is still available.';
+        $('camera-notice').hidden=false;
+      }
+    }
+    function landmarkDistance(a,b) { return Math.hypot((a.x-b.x)*(overlay.width/overlay.height),a.y-b.y); }
+    function computeOpenness(landmarks) {
+      const palm=landmarkDistance(landmarks[0],landmarks[9]);
+      if(palm<.0001)return 0;
+      const ratio=[4,8,12,16,20].reduce((sum,tip)=>sum+landmarkDistance(landmarks[0],landmarks[tip]),0)/(5*palm);
+      return clamp((ratio-1)/.85,0,1);
+    }
+    function trackGesture(open,now) {
+      if(open<.27) {
+        if(!heldClosedAt)heldClosedAt=now;
+        if(now-heldClosedAt>180)gestureArmed=true;
+        heldOpenAt=0;
+      } else if(open>.68) {
+        heldClosedAt=0;
+        if(gestureArmed) {
+          if(!heldOpenAt)heldOpenAt=now;
+          if(now-heldOpenAt>150&&now-lastGestureChange>900){gestureArmed=false;heldOpenAt=0;lastGestureChange=now;nextShape();nextPalette();}
+        }
+      } else {heldClosedAt=0;heldOpenAt=0;}
+    }
+    function drawConnections(landmarks,connections,color,isPose=false) {
+      overlayCtx.strokeStyle=color;overlayCtx.lineWidth=isPose?2:2.5;overlayCtx.lineCap='round';
+      overlayCtx.beginPath();
+      for(const edge of connections) {
+        const a=landmarks[edge.start],b=landmarks[edge.end];
+        if(!a||!b||(isPose&&((a.visibility??0)<.55||(b.visibility??0)<.55)))continue;
+        overlayCtx.moveTo(a.x*overlay.width,a.y*overlay.height);overlayCtx.lineTo(b.x*overlay.width,b.y*overlay.height);
+      }
+      overlayCtx.stroke();
+      overlayCtx.fillStyle=isPose?color:'#eafff8';
+      landmarks.forEach((p,i)=>{
+        if(isPose&&(i<11||(p.visibility??0)<.55))return;
+        overlayCtx.beginPath();overlayCtx.arc(p.x*overlay.width,p.y*overlay.height,isPose?2:([4,8,12,16,20].includes(i)?4:2.2),0,Math.PI*2);overlayCtx.fill();
+      });
+    }
+    function drawHandGlow(landmarks,connections,isControl) {
+      const fingerColors=['#ff5f7a','#ffd166','#06f7a1','#4cc9f0','#c77dff'];
+      const fingerOf=i=>i===0?-1:Math.floor((i-1)/4);
+      overlayCtx.save();overlayCtx.lineCap='round';
+      for(const edge of connections) {
+        const a=landmarks[edge.start],b=landmarks[edge.end];
+        const finger=Math.max(fingerOf(edge.start),fingerOf(edge.end));
+        const color=isControl?(finger<0?'#ffffff':fingerColors[finger]):'#8b9cba';
+        overlayCtx.shadowColor=color;overlayCtx.shadowBlur=isControl?11:4;overlayCtx.strokeStyle=color;overlayCtx.lineWidth=isControl?4:3;
+        overlayCtx.beginPath();overlayCtx.moveTo(a.x*overlay.width,a.y*overlay.height);overlayCtx.lineTo(b.x*overlay.width,b.y*overlay.height);overlayCtx.stroke();
+        overlayCtx.shadowBlur=0;overlayCtx.strokeStyle='#ffffffa6';overlayCtx.lineWidth=1;overlayCtx.stroke();
+      }
+      landmarks.forEach((point,i)=>{
+        const finger=fingerOf(i),color=isControl?(finger<0?'#ffffff':fingerColors[finger]):'#a9b5ca';
+        const tip=[4,8,12,16,20].includes(i),x=point.x*overlay.width,y=point.y*overlay.height;
+        overlayCtx.shadowColor=color;overlayCtx.shadowBlur=tip?14:8;overlayCtx.fillStyle=color;
+        overlayCtx.beginPath();overlayCtx.arc(x,y,tip?6:3.5,0,Math.PI*2);overlayCtx.fill();
+        overlayCtx.shadowBlur=0;overlayCtx.fillStyle='#ffffff';overlayCtx.beginPath();overlayCtx.arc(x,y,tip?2.3:1.5,0,Math.PI*2);overlayCtx.fill();
+      });
+      if(isControl) {
+        const wrist=landmarks[0];overlayCtx.scale(-1,1);overlayCtx.font='bold 15px sans-serif';overlayCtx.fillStyle=settings.colorA;
+        overlayCtx.fillText('CONTROL HAND',-wrist.x*overlay.width-115,clamp(wrist.y*overlay.height+24,20,overlay.height-10));
+      }
+      overlayCtx.restore();
+    }
+    function detectFrame(now) {
+      if(cameraMode!=='live'||!activeModels||video.readyState<2||video.currentTime===lastVideoTime||now-lastInference<65)return;
+      lastVideoTime=video.currentTime;lastInference=now;
+      try {
+        const result=activeModels.hand.detectForVideo(video,now),hands=result.landmarks||[];
+        if(settings.pose&&settings.preview&&activeModels.pose&&now-lastPoseInference>140) {
+          try {latestPose=activeModels.pose.detectForVideo(video,now).landmarks||[];}
+          catch {try{activeModels.pose.close();}catch{}activeModels.pose=null;latestPose=[];refreshCameraPanel();toast('Body overlay stopped. Hand gestures are still active.');}
+          lastPoseInference=now;
+        }
+        let control=null;
+        if(hands.length) {
+          control=lastWrist?hands.reduce((best,hand)=>landmarkDistance(hand[0],lastWrist)<landmarkDistance(best[0],lastWrist)?hand:best,hands[0]):hands[0];
+          if(lastWrist&&landmarkDistance(control[0],lastWrist)>.35)resetGesture();
+          lastWrist={...control[0]};rawOpen=computeOpenness(control);
+          const near=clamp((landmarkDistance(control[0],control[9])-.07)/.29,0,1);
+          rawScale=1.6-near*1.3;trackGesture(rawOpen,now);
+          const state=rawOpen<.27?'Closed':rawOpen>.68?'Open':'Moving';
+          $('hand-value').textContent=state;$('hand-note').textContent='Either hand can control';$('hand-meter').style.width='100%';
+          $('open-value').textContent=Math.round(rawOpen*100)+'%';$('open-note').textContent='Live gesture estimate';$('open-meter').style.width=rawOpen*100+'%';
+          $('distance-value').textContent=near>.66?'Near':near>.33?'Mid':'Far';$('distance-note').textContent='Relative to your camera';$('distance-meter').style.width=near*100+'%';
+        } else {
+          resetGesture();rawOpen=.68;rawScale=1;
+          $('hand-value').textContent='No hand';$('hand-note').textContent='Hold a hand in view';$('hand-meter').style.width='0%';
+          $('open-value').textContent='—';$('open-note').textContent='Waiting for your hand';$('open-meter').style.width='0%';
+          $('distance-value').textContent='—';$('distance-note').textContent='Waiting for your hand';$('distance-meter').style.width='0%';
+        }
+        if(settings.preview) {
+          overlayCtx.clearRect(0,0,overlay.width,overlay.height);
+          if(settings.pose)for(const pose of latestPose)drawConnections(pose,activeModels.PoseLandmarker.POSE_CONNECTIONS,settings.colorB,true);
+          for(const hand of hands)drawHandGlow(hand,activeModels.HandLandmarker.HAND_CONNECTIONS,hand===control);
+        }
+        if(paused){settleParticles();drawFrame(0);}
+      } catch {
+        stopCamera();$('camera-notice').textContent='Tracking stopped unexpectedly. The camera has been released. Try again or continue in demo mode.';$('camera-notice').hidden=false;
+      }
+    }
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt=clamp((now-(frameTime||now))/1000,0,.035);frameTime=now;
+      if(document.hidden)return;
+      detectFrame(now);
+      if(!paused){elapsed+=dt;drawFrame(dt);}
+      frameCount++;
+      if(now-lastStats>1000) {
+        const fps=Math.round(frameCount*1000/(now-lastStats));frameCount=0;lastStats=now;
+        $('render-stats').textContent=settings.density.toLocaleString()+' particles · '+(paused?'motion paused':fps+' fps');
+        if(cameraMode!=='live')updateDemoMetrics();
+      }
+    }
+    function setPaused(value) {
+      paused=value;$('pause').setAttribute('aria-pressed',String(value));$('pause').setAttribute('aria-label',value?'Play motion':'Pause motion');
+      $('pause').title=value?'Play (Space)':'Pause (Space)';$('pause-icon').setAttribute('href',value?'#i-play':'#i-pause');
+      if(value){settleParticles();drawFrame(0);}
+    }
+    function downloadText(text,filename,type) {
+      const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');
+      a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+    }
+    function exportHtml() {
+      const page=new DOMParser().parseFromString(PAGE_TEMPLATE,'text/html');
+      page.getElementById('studio-config').textContent=JSON.stringify(settings).replace(/</g,'\\u003c');
+      page.title=settings.name+' | '+settings.title;
+      page.querySelector('meta[name="description"]').setAttribute('content',settings.name+"'s interactive gesture studio. Create and customize luminous particle art.");
+      // Prevent other saved preferences from overriding the embedded design.
+      page.getElementById('studio-config').setAttribute('data-edition',String(Date.now()));
+      downloadText('<!DOCTYPE html>\n'+page.documentElement.outerHTML,'index.html','text/html;charset=utf-8');
+      toast('Your design is embedded in index.html, ready to publish.');
+    }
+    async function fullscreen() {
+      try {if(document.fullscreenElement)await document.exitFullscreen();else if(arena.requestFullscreen)await arena.requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen is unavailable here. Try opening the page in its own tab.');}
+    }
+    for(const button of document.querySelectorAll('[data-shape]'))button.addEventListener('click',()=>updateSettings({shape:button.dataset.shape}));
+    for(const button of document.querySelectorAll('[data-preset]'))button.addEventListener('click',()=>updateSettings({colorA:PRESETS[button.dataset.preset][0],colorB:PRESETS[button.dataset.preset][1]}));
+    for(const [id,key,numeric] of [['color-a','colorA',false],['color-b','colorB',false],['shape-select','shape',false],['density','density',true],['speed','speed',true],['glow','glow',true],['expansion','expansion',true]]) {
+      $(id).addEventListener('input',event=>updateSettings({[key]:numeric?Number(event.target.value):event.target.value}));
+    }
+    for(const [id,key] of [['name-input','name'],['student-input','studentId'],['title-input','title']])$(id).addEventListener('input',event=>updateSettings({[key]:event.target.value}));
+    for(const [id,key] of [['stars-toggle','stars'],['preview-toggle','preview'],['pose-toggle','pose']])$(id).addEventListener('change',event=>updateSettings({[key]:event.target.checked}));
+    $('next-palette').addEventListener('click',nextPalette);$('pause').addEventListener('click',()=>setPaused(!paused));
+    $('camera-button').addEventListener('click',()=>cameraMode==='demo'?startCamera():stopCamera('Camera off. Keep creating in demo mode.'));
+    $('start-tracking').addEventListener('click',()=>cameraMode==='demo'?startCamera():stopCamera('Camera off. Select Start hand tracking when you are ready.'));
+    $('fullscreen').addEventListener('click',fullscreen);
+    document.addEventListener('fullscreenchange',()=>{$('fullscreen').setAttribute('aria-label',document.fullscreenElement?'Exit fullscreen':'Enter fullscreen');});
+    $('customize').addEventListener('click',()=>{
+      const open=document.body.classList.toggle('panel-open');$('customize').setAttribute('aria-expanded',String(open));
+      if(open&&innerWidth<=900)$('customizer').scrollIntoView({behavior:reduceMotion.matches?'instant':'smooth',block:'start'});
+    });
+    $('help-button').addEventListener('click',()=>$('help-dialog').showModal());$('close-help').addEventListener('click',()=>$('help-dialog').close());
+    $('download-html').addEventListener('click',exportHtml);
+    $('export-settings').addEventListener('click',()=>{downloadText(JSON.stringify({version:1,settings},null,2),'gesture-studio-settings.json','application/json');toast('Settings exported. Import them on another device.');});
+    $('import-settings').addEventListener('click',()=>$('import-file').click());
+    $('import-file').addEventListener('change',async event=>{
+      const file=event.target.files[0];if(!file)return;
+      try {
+        if(file.size>100000)throw new Error('Please choose a settings JSON smaller than 100 KB.');
+        const data=JSON.parse(await file.text()),candidate=data.settings??data;
+        const known=Object.keys(FACTORY);
+        if(!candidate||typeof candidate!=='object'||Array.isArray(candidate)||!known.some(key=>Object.hasOwn(candidate,key)))throw new Error('This file does not contain studio settings.');
+        updateSettings(candidate);toast('Your settings are ready.');
+      }catch(error){toast(error instanceof SyntaxError?'That file is not valid JSON. Choose an exported settings file.':error.message);}
+      event.target.value='';
+    });
+    $('reset').addEventListener('click',()=>{settings={...defaults};rawScale=1;applySettings(true);saveSettings();toast('Restored this page\'s original design.');});
+    document.addEventListener('keydown',event=>{
+      if(event.ctrlKey||event.metaKey||event.altKey||event.target.closest('input,select,textarea,button,[contenteditable="true"]')||$('help-dialog').open)return;
+      if(event.code==='Space'){event.preventDefault();setPaused(!paused);}else if(event.key.toLowerCase()==='n')nextShape();else if(event.key.toLowerCase()==='c')nextPalette();else if(event.key.toLowerCase()==='f')fullscreen();
+    });
+    reduceMotion.addEventListener('change',event=>{if(event.matches)setPaused(true);});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&cameraMode!=='demo')stopCamera('Camera off while this tab is inactive.');});
+    addEventListener('pagehide',()=>stopCamera());
+    function updateClock() {const now=new Date();$('clock').textContent=now.toLocaleTimeString('en-GB',{hour12:false});$('date').textContent=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}
+    if(innerWidth<=900){document.body.classList.remove('panel-open');$('customize').setAttribute('aria-expanded','false');}
+    if(!storageAvailable)$('save-status').textContent='Browser storage is unavailable. Download your page to keep changes.';
+    applySettings(true);setCameraMode('demo');setPaused(paused);
+    new ResizeObserver(resize).observe(arena);updateClock();setInterval(updateClock,1000);requestAnimationFrame(animate);
   })();
-
-  const cameraPromise = navigator.mediaDevices.getUserMedia({
-    video: { width: 640, height: 480 }, audio: false
-  });
-
-  const [[hl, pl], stream] = await Promise.all([modelsPromise, cameraPromise]);
-  handLandmarker = hl;
-  poseLandmarker = pl;
-
-  video.srcObject = stream;
-  await new Promise(r => video.onloadeddata = r);
-  overlayCanvas.width  = video.videoWidth;
-  overlayCanvas.height = video.videoHeight;
-
-  loadingEl.style.display = "none";
-  requestAnimationFrame(loop);
-}
-
-function dist2D(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-
-/* ============ Neon-style skeleton drawing ============ */
-function px(lm) {
-  return { x: lm.x * overlayCanvas.width, y: lm.y * overlayCanvas.height };
-}
-
-/* Glowing line: outer halo + inner bright core */
-function glowLine(ctx, a, b, color, width) {
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.globalAlpha = 0.9;
-  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = "rgba(255,255,255,.85)";
-  ctx.lineWidth = Math.max(1, width * 0.35);
-  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  ctx.restore();
-}
-
-/* Glowing joint dot: halo circle + white bright core */
-function glowDot(ctx, p, color, r) {
-  const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.6);
-  g.addColorStop(0, color);
-  g.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
-}
-
-/* Body skeleton: colored by body part (torso gold, arms cyan, legs purple, face pink) */
-const POSE_COLOR_OF = i =>
-  i <= 10 ? "#ff8fd8" :                       // face
-  (i === 11 || i === 12 || i === 23 || i === 24) ? "#ffd166" : // torso endpoints
-  (i <= 22) ? "#00e5ff" :                     // arms/hands
-  "#b388ff";                                  // legs/feet
-
-function drawPoseGlow(lm) {
-  const ctx = overlayCtx;
-  for (const c of PoseLandmarker.POSE_CONNECTIONS) {
-    const a = lm[c.start], b = lm[c.end];
-    if (a.visibility < 0.5 || b.visibility < 0.5) continue;
-    const pa = px(a), pb = px(b);
-    // gradient between the two endpoint colors
-    const grad = ctx.createLinearGradient(pa.x, pa.y, pb.x, pb.y);
-    grad.addColorStop(0, POSE_COLOR_OF(c.start));
-    grad.addColorStop(1, POSE_COLOR_OF(c.end));
-    glowLine(ctx, pa, pb, POSE_COLOR_OF(c.end), 4);
-    ctx.save();
-    ctx.strokeStyle = grad; ctx.lineWidth = 4; ctx.lineCap = "round";
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
-    ctx.restore();
-  }
-  for (let i = 0; i < lm.length; i++) {
-    if (i > 10 && lm[i].visibility < 0.5) continue;
-    if (i > 0 && i <= 10) continue;           // only keep the nose tip on the face, to avoid clutter
-    glowDot(overlayCtx, px(lm[i]), POSE_COLOR_OF(i), i === 0 ? 6 : 4.5);
-  }
-}
-
-/* Hands: each finger its own color, right hand in bright colors, left hand gray-blue */
-const FINGER_COLORS = ["#ff5f7a", "#ffd166", "#06f7a1", "#4cc9f0", "#c77dff"];
-function fingerOf(i) {
-  if (i >= 1  && i <= 4)  return 0;   // thumb
-  if (i >= 5  && i <= 8)  return 1;   // index
-  if (i >= 9  && i <= 12) return 2;   // middle
-  if (i >= 13 && i <= 16) return 3;   // ring
-  if (i >= 17 && i <= 20) return 4;   // pinky
-  return -1;                          // wrist/palm
-}
-
-function drawHandGlow(lm, isRight) {
-  const ctx = overlayCtx;
-  for (const c of HandLandmarker.HAND_CONNECTIONS) {
-    const f = Math.max(fingerOf(c.start), fingerOf(c.end));
-    const color = !isRight ? "#7a8ba8"
-      : (f >= 0 ? FINGER_COLORS[f] : "#ffffff");
-    glowLine(ctx, px(lm[c.start]), px(lm[c.end]), color, isRight ? 4 : 3);
-  }
-  for (let i = 0; i < lm.length; i++) {
-    const f = fingerOf(i);
-    const color = !isRight ? "#9fb0c8"
-      : (f >= 0 ? FINGER_COLORS[f] : "#ffffff");
-    // enlarge fingertip dots so they stand out
-    const tip = (i === 4 || i === 8 || i === 12 || i === 16 || i === 20);
-    glowDot(ctx, px(lm[i]), color, tip ? 6 : 4);
-  }
-  if (isRight) {
-    // right-hand label
-    const w = px(lm[0]);
-    ctx.save();
-    ctx.font = "bold 16px 'Microsoft JhengHei', sans-serif";
-    ctx.shadowColor = "#00ff88"; ctx.shadowBlur = 10;
-    ctx.fillStyle = "#00ff88";
-    ctx.scale(-1, 1);   // cancel out the CSS mirror so the text isn't reversed
-    ctx.fillText("Control Hand R", -w.x - 120, w.y + 28);
-    ctx.restore();
-  }
-}
-
-/* Openness of the hand: average fingertip-to-wrist distance / palm reference length */
-function computeOpenness(lm) {
-  const wrist = lm[0];
-  const palmLen = dist2D(wrist, lm[9]) || 1e-6;   // wrist -> middle finger base
-  const tips = [4, 8, 12, 16, 20];
-  let sum = 0;
-  for (const i of tips) sum += dist2D(wrist, lm[i]);
-  const ratio = (sum / tips.length) / palmLen;
-  // ~0.9 for a fist, ~1.9 fully open -> mapped to 0..1
-  return Math.min(1, Math.max(0, (ratio - 1.0) / 0.85));
-}
-
-let lastVideoTime = -1;
-
-function loop() {
-  requestAnimationFrame(loop);
-  if (video.currentTime === lastVideoTime) { drawParticles(); return; }
-  lastVideoTime = video.currentTime;
-  const nowMs = performance.now();
-
-  const handRes = handLandmarker.detectForVideo(video, nowMs);
-  const poseRes = poseLandmarker.detectForVideo(video, nowMs);
-
-  /* --- draw detection results on top of the camera feed --- */
-  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-  if (poseRes.landmarks) {
-    for (const lm of poseRes.landmarks) drawPoseGlow(lm);
-  }
-
-  /* --- find the right hand (the image isn't mirrored, so the user's right hand is labeled "Left") --- */
-  let rightHand = null;
-  if (handRes.landmarks && handRes.landmarks.length) {
-    for (let i = 0; i < handRes.landmarks.length; i++) {
-      const label = handRes.handednesses?.[i]?.[0]?.categoryName;
-      const isRight = (label === "Left");
-      drawHandGlow(handRes.landmarks[i], isRight);
-      if (isRight) rightHand = handRes.landmarks[i];
-    }
-    // if only one hand is seen and it wasn't labeled right, use it anyway to avoid flicker at the detection boundary
-    if (!rightHand && handRes.landmarks.length === 1) rightHand = handRes.landmarks[0];
-  }
-
-  if (rightHand) {
-    handDetected = true;
-    rawOpenness = computeOpenness(rightHand);
-
-    /* distance estimate: the larger the hand appears, the closer to the camera -> smaller particle range */
-    const handSize = dist2D(rightHand[0], rightHand[9]);   // 0.04(far) ~ 0.30(near)
-    const near = Math.min(1, Math.max(0, (handSize - 0.05) / 0.22)); // 0=far 1=near
-    rawDistScale = 1.6 - near * 1.3;   // far: 1.6x -> near: 0.3x
-
-    /* fist -> open transition: switch shape + color */
-    const isClosed = rawOpenness < 0.25;
-    const isOpen   = rawOpenness > 0.65;
-    if (isClosed) wasClosed = true;
-    if (wasClosed && isOpen) {
-      wasClosed = false;
-      shapeIdx   = (shapeIdx + 1) % SHAPES.length;
-      paletteIdx = (paletteIdx + 1) % PALETTES.length;
-      applyShape();
-    }
-
-    /* update the info panel */
-    if (isClosed) {
-      handEl.textContent = "✊ Fist";
-      handEl.className = "closed";
-    } else if (isOpen) {
-      handEl.textContent = "🖐 Open";
-      handEl.className = "open";
-    } else {
-      handEl.textContent = "🤏 Half Open";
-      handEl.className = "open";
-    }
-    openPctEl.textContent = Math.round(rawOpenness*100) + "%";
-    openBarEl.style.width = (rawOpenness*100) + "%";
-    distEl.textContent = near > 0.66 ? "Near" : near > 0.33 ? "Mid" : "Far";
-    distBarEl.style.width = (near*100) + "%";
-  } else {
-    handDetected = false;
-    handEl.textContent = "Not Detected";
-    handEl.className = "none";
-  }
-
-  drawParticles();
-}
-
-init().catch(err => {
-  loadingEl.innerHTML = `<div style="color:#ff5f7a;max-width:600px;text-align:center;line-height:1.8">
-    Initialization failed: ${err.message}<br>
-    Please make sure camera access is allowed, and open this page via http(s) or localhost (file:// cannot access the camera).
-  </div>`;
-  console.error(err);
-});
-</script>
+  </script>
 </body>
 </html>
